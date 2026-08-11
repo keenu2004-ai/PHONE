@@ -2,274 +2,320 @@ import React, { useEffect, useState } from 'react';
 import { useUserStore } from '../store/useUserStore';
 import { attendanceApi, leaveApi, holidayApi, taskApi } from '../services/api';
 import { Attendance, Leave, Holiday, Task } from '../types';
-import { Gift, Palmtree, Clock, CheckCircle2, Circle, Sparkles, RefreshCw, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  Calendar as CalendarIcon,
+  ChevronLeft,
+  ChevronRight,
+  Gift,
+  Palmtree,
+  Clock,
+  CheckSquare,
+  Square,
+  Users,
+  Briefcase,
+  AlertCircle,
+  TrendingUp
+} from 'lucide-react';
 
 export const DashboardPage: React.FC = () => {
   const { currentUser } = useUserStore();
 
-  const [attendances, setAttendances] = useState<Attendance[]>([]);
+  const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => {
+    const d = new Date();
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    return new Date(d.setDate(diff));
+  });
+
+  const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [leaves, setLeaves] = useState<Leave[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Week offset state (0 = current week, -1 = prev week, +1 = next week)
-  const [weekOffset, setWeekOffset] = useState(0);
-
   useEffect(() => {
-    if (!currentUser) return;
     loadDashboardData();
-  }, [currentUser, weekOffset]);
+  }, [currentWeekStart, currentUser]);
 
   const loadDashboardData = async () => {
     setLoading(true);
     try {
-      const [attData, leaveData, holidayData, taskData] = await Promise.all([
-        attendanceApi.getAll(currentUser?.id),
-        leaveApi.getAll(currentUser?.id),
+      const [attData, leaveData, holData, taskData] = await Promise.all([
+        attendanceApi.getAll(),
+        leaveApi.getAll(),
         holidayApi.getAll(),
-        taskApi.getAll(currentUser?.id),
+        taskApi.getAll(),
       ]);
 
-      setAttendances(attData);
-      setLeaves(leaveData.filter((l) => l.user_id === currentUser?.id));
-      setHolidays(holidayData);
-      setTasks(taskData.filter((t) => t.user_id === currentUser?.id));
+      setAttendance(attData);
+      setLeaves(leaveData);
+      setHolidays(holData);
+      setTasks(taskData);
     } catch (err) {
-      console.error('Failed to load dashboard master calendar data:', err);
+      console.error('Failed to load dashboard records:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Helper to get Monday-to-Friday dates for current week offset
-  const getWeekDays = (offset: number) => {
-    const today = new Date();
-    const dayOfWeek = today.getDay(); // 0 is Sun, 1 is Mon...
-    const distanceToMonday = (dayOfWeek + 6) % 7;
-
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - distanceToMonday + offset * 7);
-    monday.setHours(0, 0, 0, 0);
-
-    const weekDays = [];
-    const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-
-    for (let i = 0; i < 5; i++) {
-      const date = new Date(monday);
-      date.setDate(monday.getDate() + i);
-      weekDays.push({
-        name: dayNames[i],
-        shortName: dayNames[i].substring(0, 3),
-        date: date,
-        dateString: date.toISOString().split('T')[0],
-      });
-    }
-
-    return weekDays;
-  };
-
-  const weekDays = getWeekDays(weekOffset);
-
-  // Task toggle handler
-  const handleToggleTask = async (task: Task) => {
-    const nextStatus = task.status === 'TODO' ? 'DONE' : 'TODO';
+  const handleToggleTask = async (taskId: string, currentStatus: string) => {
     try {
-      // Optimistic update
+      const newStatus = currentStatus === 'DONE' ? 'TODO' : 'DONE';
+      await taskApi.updateStatus(taskId, newStatus);
       setTasks((prev) =>
-        prev.map((t) => (t.id === task.id ? { ...t, status: nextStatus } : t))
+        prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
       );
-      await taskApi.updateStatus(task.id, nextStatus);
-    } catch (error) {
-      // Rollback on failure
-      setTasks((prev) =>
-        prev.map((t) => (t.id === task.id ? { ...t, status: task.status } : t))
-      );
+    } catch (err) {
+      console.error('Failed to toggle task status:', err);
     }
   };
+
+  const weekDays = [0, 1, 2, 3, 4].map((offset) => {
+    const d = new Date(currentWeekStart);
+    d.setDate(d.getDate() + offset);
+    return d;
+  });
+
+  const formatDateShort = (d: Date) =>
+    d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+  const isSameDay = (d1: Date, d2Str: string | Date | undefined) => {
+    if (!d2Str) return false;
+    const d2 = new Date(d2Str);
+    return (
+      d1.getFullYear() === d2.getFullYear() &&
+      d1.getMonth() === d2.getMonth() &&
+      d1.getDate() === d2.getDate()
+    );
+  };
+
+  const navigateWeek = (direction: 'prev' | 'next') => {
+    const nextStart = new Date(currentWeekStart);
+    nextStart.setDate(nextStart.getDate() + (direction === 'next' ? 7 : -7));
+    setCurrentWeekStart(nextStart);
+  };
+
+  const todayStr = new Date();
+  const todayAttendance = attendance.find(
+    (a) => a.user_id === currentUser?.id && isSameDay(todayStr, a.date)
+  );
+  const pendingLeavesCount = leaves.filter((l) => l.status === 'PENDING').length;
+  const myTasksCount = tasks.filter(
+    (t) => t.user_id === currentUser?.id && t.status === 'TODO'
+  ).length;
 
   return (
     <div className="space-y-6">
-      {/* Dashboard Top Header */}
-      <div className="teamnest-card bg-gradient-to-r from-brand-600 to-brand-700 text-white border-none p-6 md:p-8 shadow-lg shadow-brand-600/15">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Executive Hero Banner Card */}
+      <div className="rounded-2xl bg-gradient-to-r from-blue-700 via-indigo-600 to-blue-800 p-6 md:p-8 text-white shadow-xl shadow-blue-600/15 relative overflow-hidden">
+        <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-white/5 skew-x-12 pointer-events-none" />
+        
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <div className="flex items-center gap-2 text-brand-100 text-xs font-semibold uppercase tracking-wider mb-2">
-              <Sparkles className="w-4 h-4" /> Master Calendar Dashboard
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 text-blue-100 text-xs font-bold mb-3 backdrop-blur-xs">
+              <TrendingUp className="w-3.5 h-3.5 text-blue-200" />
+              <span>Unified Workforce Dashboard</span>
             </div>
-            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
-              Weekly Overview for {currentUser?.full_name}
+            <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
+              Welcome back, {currentUser?.full_name || 'Team Member'} 👋
             </h1>
-            <p className="text-brand-100 text-sm mt-1 max-w-xl">
-              Unified weekly schedule aggregating tasks, attendance check-ins, approved leaves, and company holidays.
+            <p className="text-sm text-blue-100/90 mt-1 font-medium max-w-xl">
+              Master Calendar view tracking shift attendance, leave requests, upcoming holidays, and team task deliverables.
             </p>
           </div>
 
-          {/* Week Selector Controls */}
-          <div className="flex items-center gap-2 bg-white/10 backdrop-blur-xs p-1.5 rounded-xl border border-white/20">
-            <button
-              onClick={() => setWeekOffset((prev) => prev - 1)}
-              className="p-1.5 rounded-lg hover:bg-white/20 text-white transition-colors"
-              title="Previous Week"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => setWeekOffset(0)}
-              className="px-3 py-1 rounded-lg bg-white/20 text-xs font-bold hover:bg-white/30 transition-colors"
-            >
-              This Week
-            </button>
-            <button
-              onClick={() => setWeekOffset((prev) => prev + 1)}
-              className="p-1.5 rounded-lg hover:bg-white/20 text-white transition-colors"
-              title="Next Week"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
+          {/* Quick Metrics Pills */}
+          <div className="grid grid-cols-3 gap-3 shrink-0">
+            <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/15 text-center">
+              <div className="text-xs text-blue-200 font-bold">Shift Status</div>
+              <div className="text-sm font-extrabold mt-0.5 text-white">
+                {todayAttendance ? (
+                  <span className="text-emerald-300">Clocked In</span>
+                ) : (
+                  <span className="text-amber-200">Not Checked In</span>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/15 text-center">
+              <div className="text-xs text-blue-200 font-bold">Open Tasks</div>
+              <div className="text-lg font-black mt-0.5 text-white">{myTasksCount}</div>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/15 text-center">
+              <div className="text-xs text-blue-200 font-bold">Pending Approvals</div>
+              <div className="text-lg font-black mt-0.5 text-amber-200">{pendingLeavesCount}</div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Unified Master Calendar Grid Header */}
-      <div className="flex items-center justify-between">
+      {/* Week Navigator Bar */}
+      <div className="teamnest-card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+            <CalendarIcon className="w-5 h-5 text-blue-600" />
+          </div>
+          <div>
+            <h2 className="font-extrabold text-base text-slate-900">
+              Week of {formatDateShort(weekDays[0])} – {formatDateShort(weekDays[4])}, {currentWeekStart.getFullYear()}
+            </h2>
+            <p className="text-xs text-slate-500 font-semibold">5-Day Workforce Operational Schedule</p>
+          </div>
+        </div>
+
         <div className="flex items-center gap-2">
-          <CalendarIcon className="w-5 h-5 text-brand-600" />
-          <h2 className="font-extrabold text-lg text-gray-900">
-            Week of {weekDays[0].date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {weekDays[4].date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-          </h2>
-        </div>
+          <button
+            onClick={() => navigateWeek('prev')}
+            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition-colors flex items-center gap-1 text-xs"
+          >
+            <ChevronLeft className="w-4 h-4" /> Previous Week
+          </button>
 
-        {loading && (
-          <div className="flex items-center gap-2 text-xs font-semibold text-gray-400">
-            <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Aggregating schedule...
-          </div>
-        )}
+          <button
+            onClick={() => setCurrentWeekStart(new Date())}
+            className="px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-extrabold text-xs transition-colors border border-blue-200/80"
+          >
+            Current Week
+          </button>
+
+          <button
+            onClick={() => navigateWeek('next')}
+            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition-colors flex items-center gap-1 text-xs"
+          >
+            Next Week <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
-      {/* Master Weekly Calendar Component */}
-      {/* Desktop View (>=768px): 5-Column Grid */}
-      {/* Mobile View (<768px): Vertical Stack of Daily Cards */}
+      {/* Master Weekly Grid */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        {weekDays.map((day) => {
-          const isToday = new Date().toISOString().split('T')[0] === day.dateString;
+        {weekDays.map((dayDate, idx) => {
+          const dayName = dayDate.toLocaleDateString('en-US', { weekday: 'long' });
 
-          // 1. Attendance for this day
-          const dayAttendance = attendances.find((a) => {
-            const aDate = new Date(a.date).toISOString().split('T')[0];
-            return aDate === day.dateString;
-          });
+          const dayHolidays = holidays.filter((h) => isSameDay(dayDate, h.date));
+          const dayLeaves = leaves.filter(
+            (l) =>
+              l.user_id === currentUser?.id &&
+              l.status === 'APPROVED' &&
+              new Date(dayDate) >= new Date(l.start_date) &&
+              new Date(dayDate) <= new Date(l.end_date)
+          );
+          const dayAttendance = attendance.filter((a) => isSameDay(dayDate, a.date));
+          const dayTasks = tasks.filter(
+            (t) => t.user_id === currentUser?.id && isSameDay(dayDate, t.due_date)
+          );
 
-          // 2. Company Holiday for this day
-          const dayHoliday = holidays.find((h) => {
-            const hDate = new Date(h.date).toISOString().split('T')[0];
-            return hDate === day.dateString;
-          });
-
-          // 3. Approved Leave for this day
-          const dayLeave = leaves.find((l) => {
-            if (l.status !== 'APPROVED') return false;
-            const startStr = new Date(l.start_date).toISOString().split('T')[0];
-            const endStr = new Date(l.end_date).toISOString().split('T')[0];
-            return day.dateString >= startStr && day.dateString <= endStr;
-          });
-
-          // 4. Tasks due on this day (or pending tasks assigned to user)
-          const dayTasks = tasks.filter((t) => {
-            const dueDateStr = new Date(t.due_date).toISOString().split('T')[0];
-            return dueDateStr === day.dateString;
-          });
+          const isTodayDay = isSameDay(todayStr, dayDate);
 
           return (
             <div
-              key={day.dateString}
-              className={`teamnest-card p-4 flex flex-col justify-between min-h-[220px] transition-all ${
-                isToday ? 'ring-2 ring-brand-600/40 bg-brand-50/10 shadow-md' : 'bg-white'
+              key={idx}
+              className={`teamnest-card p-4 flex flex-col justify-between space-y-4 ${
+                isTodayDay ? 'ring-2 ring-blue-600 bg-blue-50/20 border-blue-200' : ''
               }`}
             >
               {/* Day Header */}
-              <div>
-                <div className="flex items-center justify-between pb-3 mb-3 border-b border-gray-100">
-                  <div>
-                    <span className="text-xs font-bold uppercase tracking-wider text-gray-400">
-                      {day.name}
-                    </span>
-                    <div className={`text-base font-extrabold tracking-tight ${isToday ? 'text-brand-600' : 'text-gray-900'}`}>
-                      {day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    </div>
+              <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">
+                    {dayName}
+                  </span>
+                  <div className="text-lg font-black text-slate-900">
+                    {formatDateShort(dayDate)}
                   </div>
-                  {isToday && (
-                    <span className="px-2 py-0.5 rounded-full bg-brand-600 text-white text-[10px] font-extrabold uppercase tracking-wide">
-                      Today
-                    </span>
-                  )}
                 </div>
 
-                {/* Day Content Stack (Enforce 8px / gap-2 spacing) */}
-                <div className="space-y-2 flex-1">
-                  {/* 1. Subtle Attendance Text String at Top */}
-                  {dayAttendance && dayAttendance.clock_in && (
-                    <div className="text-xs font-semibold text-emerald-700 bg-emerald-50/80 px-2.5 py-1 rounded-md border border-emerald-200/60 flex items-center gap-1.5 mb-2">
-                      <Clock className="w-3 h-3 text-emerald-600 shrink-0" />
-                      <span>
-                        In: {new Date(dayAttendance.clock_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* 2. Holiday Pill (Full-width, solid light blue, Gift icon) */}
-                  {dayHoliday && (
-                    <div className="w-full bg-sky-100 border border-sky-200 text-sky-800 rounded-lg px-3 py-2 text-xs font-bold flex items-center gap-2 shadow-xs">
-                      <Gift className="w-4 h-4 text-sky-600 shrink-0" />
-                      <span className="truncate">{dayHoliday.name}</span>
-                    </div>
-                  )}
-
-                  {/* 3. Approved Leave Pill (Yellow/Orange, Palm Tree icon) */}
-                  {dayLeave && (
-                    <div className="w-full bg-amber-100 border border-amber-200 text-amber-900 rounded-lg px-3 py-2 text-xs font-bold flex items-center gap-2 shadow-xs">
-                      <Palmtree className="w-4 h-4 text-amber-700 shrink-0" />
-                      <span className="truncate">{dayLeave.leave_type} (Approved)</span>
-                    </div>
-                  )}
-
-                  {/* 4. Tasks Checkbox List */}
-                  {dayTasks.length > 0 ? (
-                    <div className="space-y-1.5 pt-1">
-                      <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 px-0.5">Tasks</div>
-                      {dayTasks.map((t) => (
-                        <div
-                          key={t.id}
-                          onClick={() => handleToggleTask(t)}
-                          className="flex items-start gap-2 p-2 rounded-lg bg-gray-50 hover:bg-gray-100/80 border border-gray-200/70 cursor-pointer transition-colors group"
-                        >
-                          <button type="button" className="mt-0.5 text-gray-400 group-hover:text-brand-600 transition-colors shrink-0">
-                            {t.status === 'DONE' ? (
-                              <CheckCircle2 className="w-4 h-4 text-brand-600" />
-                            ) : (
-                              <Circle className="w-4 h-4" />
-                            )}
-                          </button>
-                          <span
-                            className={`text-xs font-medium leading-tight ${
-                              t.status === 'DONE' ? 'line-through text-gray-400' : 'text-gray-900 font-semibold'
-                            }`}
-                          >
-                            {t.title}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : !dayHoliday && !dayLeave && !dayAttendance && (
-                    <div className="text-[11px] text-gray-400 italic pt-2">No scheduled events</div>
-                  )}
-                </div>
+                {isTodayDay && (
+                  <span className="px-2.5 py-0.5 rounded-full bg-blue-600 text-white font-extrabold text-[10px] uppercase tracking-wide">
+                    Today
+                  </span>
+                )}
               </div>
 
-              {/* Card Footer Info */}
-              <div className="mt-4 pt-2 border-t border-gray-50 text-[10px] text-gray-400 font-mono flex items-center justify-between">
-                <span>{day.shortName}</span>
-                <span>{dayTasks.length} task{dayTasks.length === 1 ? '' : 's'}</span>
+              {/* Day Contents */}
+              <div className="space-y-2.5 flex-1 min-h-[140px]">
+                {dayHolidays.map((h) => (
+                  <div
+                    key={h.id}
+                    className="p-2.5 rounded-xl bg-sky-100 border border-sky-300 text-sky-900 flex items-center gap-2 text-xs font-extrabold shadow-xs"
+                  >
+                    <Gift className="w-4 h-4 text-sky-700 shrink-0" />
+                    <span className="truncate">{h.name}</span>
+                  </div>
+                ))}
+
+                {dayLeaves.map((l) => (
+                  <div
+                    key={l.id}
+                    className="p-2.5 rounded-xl bg-amber-100 border border-amber-300 text-amber-900 flex items-center gap-2 text-xs font-extrabold shadow-xs"
+                  >
+                    <Palmtree className="w-4 h-4 text-amber-700 shrink-0" />
+                    <span className="truncate">{l.leave_type} Leave</span>
+                  </div>
+                ))}
+
+                {dayAttendance.map((a) => {
+                  const clockInTime = a.clock_in
+                    ? new Date(a.clock_in).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })
+                    : '--';
+                  const isUserClockIn = a.user_id === currentUser?.id;
+
+                  return (
+                    <div
+                      key={a.id}
+                      className={`p-2.5 rounded-xl border flex items-center justify-between text-xs font-extrabold shadow-xs ${
+                        isUserClockIn
+                          ? 'bg-emerald-100 border-emerald-300 text-emerald-900'
+                          : 'bg-slate-100 border-slate-200 text-slate-800'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <Clock className={`w-4 h-4 ${isUserClockIn ? 'text-emerald-700' : 'text-slate-500'} shrink-0`} />
+                        <span className="truncate">In: {clockInTime}</span>
+                      </div>
+                      <span className="text-[10px] text-slate-500 font-semibold truncate ml-1">
+                        {a.user?.full_name ? a.user.full_name.split(' ')[0] : ''}
+                      </span>
+                    </div>
+                  );
+                })}
+
+                {dayTasks.map((t) => (
+                  <div
+                    key={t.id}
+                    onClick={() => handleToggleTask(t.id, t.status)}
+                    className={`p-2.5 rounded-xl border cursor-pointer flex items-start gap-2 text-xs transition-all ${
+                      t.status === 'DONE'
+                        ? 'bg-slate-50 border-slate-200 text-slate-400 line-through'
+                        : 'bg-white hover:bg-blue-50/50 border-slate-200 hover:border-blue-200 text-slate-900 font-bold shadow-xs'
+                    }`}
+                  >
+                    {t.status === 'DONE' ? (
+                      <CheckSquare className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    ) : (
+                      <Square className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                    )}
+                    <span className="leading-snug">{t.title}</span>
+                  </div>
+                ))}
+
+                {dayHolidays.length === 0 &&
+                  dayLeaves.length === 0 &&
+                  dayAttendance.length === 0 &&
+                  dayTasks.length === 0 && (
+                    <div className="h-full flex items-center justify-center text-xs text-slate-400 italic py-8 border border-dashed border-slate-200 rounded-xl">
+                      No scheduled events
+                    </div>
+                  )}
+              </div>
+
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-bold text-slate-400">
+                <span>{dayName.slice(0, 3)}</span>
+                <span>{dayTasks.length} tasks</span>
               </div>
             </div>
           );

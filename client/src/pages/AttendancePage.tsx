@@ -4,206 +4,224 @@ import { attendanceApi } from '../services/api';
 import { Attendance } from '../types';
 import { useToast } from '../components/toast/ToastContext';
 import { offlineSync } from '../services/offlineSync';
-import { Clock, MapPin, CheckCircle2, AlertCircle, RefreshCw, Navigation, WifiOff } from 'lucide-react';
+import {
+  Clock,
+  MapPin,
+  CheckCircle2,
+  AlertTriangle,
+  RefreshCw,
+  LogOut,
+  Navigation
+} from 'lucide-react';
 
 export const AttendancePage: React.FC = () => {
   const { currentUser } = useUserStore();
   const { showSuccess, showError } = useToast();
 
-  const [records, setRecords] = useState<Attendance[]>([]);
+  const [todayRecord, setTodayRecord] = useState<Attendance | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-
-  // Geolocation & offline status
-  const [locationStatus, setLocationStatus] = useState<string>('Ready for GPS check-in');
+  const [history, setHistory] = useState<Attendance[]>([]);
 
   useEffect(() => {
-    if (!currentUser) return;
-    loadAttendance();
+    loadAttendanceData();
   }, [currentUser]);
 
-  const loadAttendance = async () => {
+  const loadAttendanceData = async () => {
+    if (!currentUser) return;
     setLoading(true);
     try {
-      const data = await attendanceApi.getAll();
-      setRecords(data);
+      const records = await attendanceApi.getAll(currentUser.id);
+      setHistory(records);
+
+      const todayStr = new Date().toDateString();
+      const activeToday = records.find(
+        (r: Attendance) => r.date && new Date(r.date).toDateString() === todayStr && !r.clock_out
+      );
+
+      setTodayRecord(activeToday || null);
     } catch (err: any) {
-      showError(err.message || 'Failed to load attendance records');
+      console.warn('Could not load attendance records:', err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const todayRecord = records.find((r) => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const recDateStr = new Date(r.date).toISOString().split('T')[0];
-    return recDateStr === todayStr && r.user_id === currentUser?.id;
-  });
-
-  const isClockedIn = Boolean(todayRecord && todayRecord.clock_in && !todayRecord.clock_out);
-
-  const handleToggleClock = async () => {
+  const handleAttendanceClick = () => {
     setActionLoading(true);
-    setLocationStatus('Acquiring high-accuracy GPS coordinates...');
 
-    // Offline Resilience Fallback Check
-    if (!navigator.onLine) {
-      if (!currentUser?.id) {
-        showError('User session unavailable for offline check-in');
-        setActionLoading(false);
-        return;
-      }
-      // Store in localStorage queue
-      offlineSync.queueCheckIn(currentUser.id, 37.7749, -122.4194);
-      showSuccess(
-        'Check-in saved offline! Will automatically sync to database when internet reconnects.',
-        'Offline Mode Active'
-      );
-      setLocationStatus('Queued in offline storage');
+    if (!navigator.geolocation) {
+      showError('Geolocation is not supported by your browser', 'GPS Error');
       setActionLoading(false);
       return;
     }
 
-    // Browser Geolocation API
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const lat = position.coords.latitude;
-          const lng = position.coords.longitude;
-          setLocationStatus(`GPS Locked: ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
-          await executeClockAction(lat, lng);
-        },
-        async (error) => {
-          showError(`GPS Notice: ${error.message}. Using default location.`, 'Location Permission');
-          setLocationStatus('GPS Fallback (Base Location)');
-          await executeClockAction(37.7749, -122.4194);
-        },
-        { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
-      );
-    } else {
-      showError('Geolocation is not supported by your browser', 'GPS Error');
-      await executeClockAction(37.7749, -122.4194);
-    }
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+
+        try {
+          if (!todayRecord) {
+            // Check In Flow
+            if (!navigator.onLine) {
+              offlineSync.queueCheckIn(currentUser?.id || '', latitude, longitude);
+              showSuccess(
+                'Internet unavailable. Check-in saved offline & will auto-sync when online!',
+                'Offline Check-In Saved'
+              );
+            } else {
+              const newRecord = await attendanceApi.clockIn({
+                lat: latitude,
+                lng: longitude,
+              });
+              setTodayRecord(newRecord);
+              showSuccess('Successfully clocked in for today!', 'Check-In Success');
+            }
+          } else {
+            // Check Out Flow
+            await attendanceApi.clockOut({
+              attendance_id: todayRecord.id,
+            });
+            setTodayRecord(null);
+            showSuccess('Successfully clocked out! Have a great evening.', 'Check-Out Success');
+          }
+          await loadAttendanceData();
+        } catch (err: any) {
+          showError(err.message || 'Failed to submit attendance request', 'Action Failed');
+        } finally {
+          setActionLoading(false);
+        }
+      },
+      (geoError) => {
+        setActionLoading(false);
+        showError(
+          `GPS Location acquisition failed: ${geoError.message}. Please enable location permissions.`,
+          'GPS Location Required'
+        );
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   };
 
-  const executeClockAction = async (lat: number, lng: number) => {
-    try {
-      if (isClockedIn) {
-        await attendanceApi.clockOut({ attendance_id: todayRecord?.id });
-        showSuccess(`Clocked out successfully at ${new Date().toLocaleTimeString()}`, 'Shift Ended');
-      } else {
-        await attendanceApi.clockIn({ lat, lng });
-        showSuccess(`Clocked in successfully at ${new Date().toLocaleTimeString()}`, 'Check-In Recorded');
-      }
-      await loadAttendance();
-    } catch (err: any) {
-      // If network fails during request, trigger offline queue
-      if (!navigator.onLine && currentUser?.id) {
-        offlineSync.queueCheckIn(currentUser.id, lat, lng);
-        showSuccess('Saved check-in to offline storage queue', 'Network Disconnected');
-      } else {
-        showError(err.message || 'Clock action failed', 'API Error');
-      }
-    } finally {
-      setActionLoading(false);
-    }
-  };
+  const isClockedIn = Boolean(todayRecord);
 
   return (
-    <div className="space-y-8 max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="text-center md:text-left">
-        <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">Attendance Check-In</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Mobile-first GPS & offline-resilient check-in for <span className="font-bold text-gray-900">{currentUser?.full_name}</span>
-        </p>
+    <div className="space-y-6 max-w-4xl mx-auto">
+      {/* Header Banner */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2.5">
+            <Clock className="w-7 h-7 text-blue-600" /> Attendance Action Module
+          </h1>
+          <p className="text-sm text-slate-500 font-medium mt-1">
+            Mobile-first GPS clock-in dial for recording verified shift timestamp & location.
+          </p>
+        </div>
       </div>
 
-      {/* Big Circular Clock Button */}
-      <div className="teamnest-card p-8 md:p-12 flex flex-col items-center justify-center text-center shadow-md">
-        {/* GPS / Network Status Badge */}
-        <div className="mb-6 flex items-center gap-2 px-4 py-1.5 rounded-full bg-gray-100 border border-gray-200 text-xs font-bold text-gray-600">
-          {!navigator.onLine ? (
-            <WifiOff className="w-3.5 h-3.5 text-amber-600" />
-          ) : (
-            <Navigation className={`w-3.5 h-3.5 ${isClockedIn ? 'text-red-500 animate-pulse' : 'text-emerald-500'}`} />
-          )}
-          <span>{!navigator.onLine ? 'Offline Mode (Local Auto-Sync Active)' : locationStatus}</span>
+      {/* Main Massive Circular Action Button Section */}
+      <div className="teamnest-card p-8 md:p-12 text-center flex flex-col items-center justify-center space-y-6 relative overflow-hidden">
+        <div className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+          <Navigation className="w-4 h-4 text-blue-600" /> Verified Geolocation System
         </div>
 
-        {/* Circular Dial Button */}
-        <button
-          onClick={handleToggleClock}
-          disabled={actionLoading}
-          className={`group relative w-56 h-56 md:w-64 md:h-64 rounded-full flex flex-col items-center justify-center text-white transition-all transform active:scale-95 shadow-xl ${
-            isClockedIn
-              ? 'bg-gradient-to-tr from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 shadow-red-500/30 ring-8 ring-red-100'
-              : 'bg-gradient-to-tr from-emerald-600 via-brand-600 to-brand-700 hover:from-emerald-700 hover:to-brand-800 shadow-brand-600/30 ring-8 ring-brand-100'
-          } ${actionLoading ? 'opacity-75 cursor-not-allowed' : ''}`}
-        >
-          <div className="absolute inset-2 rounded-full border-2 border-white/20 pointer-events-none" />
+        {/* Large Centered Circular Action Button */}
+        <div className="relative my-4">
+          <div
+            className={`absolute -inset-4 rounded-full opacity-30 animate-pulse blur-xl transition-all ${
+              isClockedIn ? 'bg-red-500' : 'bg-emerald-500'
+            }`}
+          />
 
-          {actionLoading ? (
-            <RefreshCw className="w-12 h-12 animate-spin mb-2" />
+          <button
+            onClick={handleAttendanceClick}
+            disabled={actionLoading || loading}
+            className={`relative w-48 h-48 md:w-56 md:h-56 rounded-full flex flex-col items-center justify-center text-white font-black transition-all transform active:scale-95 disabled:opacity-50 shadow-2xl ${
+              isClockedIn
+                ? 'bg-gradient-to-br from-red-500 via-red-600 to-rose-700 shadow-red-600/40 hover:from-red-600 hover:to-red-800'
+                : 'bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 shadow-emerald-600/40 hover:from-emerald-600 hover:to-teal-800'
+            }`}
+          >
+            {actionLoading ? (
+              <RefreshCw className="w-12 h-12 animate-spin text-white mb-2" />
+            ) : isClockedIn ? (
+              <LogOut className="w-12 h-12 text-white mb-2" />
+            ) : (
+              <CheckCircle2 className="w-12 h-12 text-white mb-2" />
+            )}
+
+            <span className="text-xl md:text-2xl font-black tracking-tight">
+              {actionLoading
+                ? 'Acquiring GPS...'
+                : isClockedIn
+                ? 'Check Out'
+                : 'Check In'}
+            </span>
+
+            <span className="text-[11px] font-bold text-white/80 mt-1">
+              {isClockedIn ? 'End Active Shift' : 'Start Today Shift'}
+            </span>
+          </button>
+        </div>
+
+        {/* Status Callout Card */}
+        <div className="max-w-sm w-full p-4 rounded-xl border bg-slate-50 flex items-center justify-between text-xs font-bold">
+          <span className="text-slate-500">Current Shift Status:</span>
+          {isClockedIn && todayRecord?.clock_in ? (
+            <span className="badge badge-present px-3 py-1 rounded-full text-xs">
+              Clocked In ({new Date(todayRecord.clock_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})
+            </span>
           ) : (
-            <Clock className="w-14 h-14 md:w-16 md:h-16 mb-2 group-hover:scale-110 transition-transform" />
+            <span className="badge badge-pending px-3 py-1 rounded-full text-xs">
+              Not Clocked In Today
+            </span>
           )}
-
-          <span className="text-2xl md:text-3xl font-extrabold tracking-tight">
-            {actionLoading ? 'Processing...' : isClockedIn ? 'Check Out' : 'Check In'}
-          </span>
-
-          <span className="text-xs text-white/80 font-medium mt-1">
-            {isClockedIn ? 'Tap to end shift' : 'Tap to record shift entry'}
-          </span>
-        </button>
+        </div>
       </div>
 
-      {/* Attendance History Audit Log */}
+      {/* History Log Table */}
       <div className="teamnest-card p-6">
-        <h3 className="font-extrabold text-base text-gray-900 mb-4 flex items-center justify-between">
-          <span>Recent Attendance Logs</span>
-          <span className="text-xs font-mono text-gray-400">{records.length} Total Records</span>
-        </h3>
+        <h3 className="font-black text-base text-slate-900 mb-4">Recent Shift Logs</h3>
         {loading ? (
-          <div className="py-8 flex justify-center text-gray-400">
+          <div className="py-8 flex justify-center text-slate-400">
             <RefreshCw className="w-6 h-6 animate-spin" />
           </div>
+        ) : history.length === 0 ? (
+          <div className="text-xs text-slate-400 py-6 text-center">No attendance logs found.</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-gray-50 text-xs font-bold text-gray-400 uppercase tracking-wider border-b border-gray-200">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 font-black text-slate-400 uppercase tracking-wider border-b border-slate-200">
                 <tr>
-                  <th className="p-3.5">Employee</th>
-                  <th className="p-3.5">Date</th>
-                  <th className="p-3.5">Clock In</th>
-                  <th className="p-3.5">Clock Out</th>
-                  <th className="p-3.5">GPS Location</th>
-                  <th className="p-3.5">Status</th>
+                  <th className="p-3">Date</th>
+                  <th className="p-3">Clock In</th>
+                  <th className="p-3">Clock Out</th>
+                  <th className="p-3">Location Coordinates</th>
+                  <th className="p-3 text-right">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 font-medium">
-                {records.map((r) => (
-                  <tr key={r.id} className="hover:bg-gray-50/80 transition-colors">
-                    <td className="p-3.5 flex items-center gap-3">
-                      <img src={r.user?.avatar_url || currentUser?.avatar_url} alt="" className="w-8 h-8 rounded-full" />
-                      <span className="font-bold text-gray-900">{r.user?.full_name || currentUser?.full_name}</span>
+              <tbody className="divide-y divide-slate-100 font-semibold">
+                {history.map((r) => (
+                  <tr key={r.id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="p-3 font-bold text-slate-900">
+                      {r.date ? new Date(r.date).toLocaleDateString() : '--'}
                     </td>
-                    <td className="p-3.5 text-gray-600">{new Date(r.date).toLocaleDateString()}</td>
-                    <td className="p-3.5 font-bold text-emerald-600">
-                      {r.clock_in ? new Date(r.clock_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'}
+                    <td className="p-3 text-emerald-700 font-mono">
+                      {r.clock_in
+                        ? new Date(r.clock_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        : '--'}
                     </td>
-                    <td className="p-3.5 font-bold text-red-500">
-                      {r.clock_out ? new Date(r.clock_out).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Active'}
+                    <td className="p-3 text-slate-600 font-mono">
+                      {r.clock_out
+                        ? new Date(r.clock_out).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        : 'Active Shift'}
                     </td>
-                    <td className="p-3.5 text-xs text-gray-500 font-mono flex items-center gap-1">
-                      <MapPin className="w-3.5 h-3.5 text-brand-600 shrink-0" />
-                      {r.check_in_lat ? `${r.check_in_lat.toFixed(2)}, ${r.check_in_lng?.toFixed(2)}` : 'Office Base'}
+                    <td className="p-3 text-slate-500 font-mono flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      {r.check_in_lat?.toFixed(4)}, {r.check_in_lng?.toFixed(4)}
                     </td>
-                    <td className="p-3.5">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                        r.status === 'PRESENT' ? 'badge-present' : 'badge-absent'
-                      }`}>
+                    <td className="p-3 text-right">
+                      <span className="badge badge-present text-[10px] px-2.5 py-0.5 rounded-full">
                         {r.status}
                       </span>
                     </td>
