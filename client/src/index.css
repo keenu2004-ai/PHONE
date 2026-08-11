@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,61 +6,61 @@
 
 @layer base {
   body {
-    background-color: #f8fafc;
-    color: #0f172a;
+    background-color: #f3f4f6; /* Neutral Light Canvas with sharp card contrast */
+    color: #111827; /* Dark Primary Text */
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
   }
 }
 
-/* Custom Executive Card Utility */
+/* High Contrast Card Utility */
 .teamnest-card {
   background-color: #ffffff;
   border-radius: 0.875rem; /* 14px */
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.03);
+  border: 1px solid #d1d5db; /* Visible border-gray-300 */
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
   padding: 1.5rem; /* p-6 */
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .teamnest-card:hover {
-  border-color: #cbd5e1;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.06), 0 4px 6px -4px rgba(0, 0, 0, 0.03);
+  border-color: #9ca3af;
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
 }
 
-/* High Contrast Status Badges */
+/* High-Contrast Readability Status Badges */
 .badge-present, .badge-approved, .badge-done {
-  background-color: #ecfdf5;
-  color: #047857;
-  border: 1px solid #a7f3d0;
-  font-weight: 700;
+  background-color: #d1fae5;
+  color: #065f46; /* Deep Emerald */
+  border: 1px solid #6ee7b7;
+  font-weight: 800;
 }
 
 .badge-pending, .badge-todo {
-  background-color: #fffbeb;
-  color: #b45309;
-  border: 1px solid #fde68a;
-  font-weight: 700;
+  background-color: #fef3c7;
+  color: #92400e; /* Deep Amber */
+  border: 1px solid #fcd34d;
+  font-weight: 800;
 }
 
 .badge-absent, .badge-rejected {
-  background-color: #fef2f2;
-  color: #b91c1c;
-  border: 1px solid #fecaca;
-  font-weight: 700;
+  background-color: #fee2e2;
+  color: #991b1b; /* Deep Crimson */
+  border: 1px solid #fca5a5;
+  font-weight: 800;
 }
 
 .badge-admin {
-  background-color: #eff6ff;
-  color: #1d4ed8;
-  border: 1px solid #bfdbfe;
+  background-color: #dbeafe;
+  color: #1e40af; /* Deep Royal Blue */
+  border: 1px solid #93c5fd;
   font-weight: 800;
 }
 
 .badge-employee {
-  background-color: #f1f5f9;
-  color: #334155;
-  border: 1px solid #cbd5e1;
-  font-weight: 700;
+  background-color: #e5e7eb;
+  color: #1f2937; /* Dark Slate Gray */
+  border: 1px solid #9ca3af;
+  font-weight: 800;
 }

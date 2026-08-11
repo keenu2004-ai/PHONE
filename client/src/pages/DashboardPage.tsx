@@ -11,9 +11,6 @@ import {
   Clock,
   CheckSquare,
   Square,
-  Users,
-  Briefcase,
-  AlertCircle,
   TrendingUp
 } from 'lucide-react';
 
@@ -106,45 +103,43 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Executive Hero Banner Card */}
-      <div className="rounded-2xl bg-gradient-to-r from-blue-700 via-indigo-600 to-blue-800 p-6 md:p-8 text-white shadow-xl shadow-blue-600/15 relative overflow-hidden">
-        <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-white/5 skew-x-12 pointer-events-none" />
-        
+      {/* High-Contrast Executive Banner */}
+      <div className="rounded-2xl bg-blue-700 p-6 md:p-8 text-white shadow-lg border border-blue-800 relative overflow-hidden">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 text-blue-100 text-xs font-bold mb-3 backdrop-blur-xs">
-              <TrendingUp className="w-3.5 h-3.5 text-blue-200" />
-              <span>Unified Workforce Dashboard</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-white text-xs font-black mb-3">
+              <TrendingUp className="w-4 h-4 text-white stroke-[2.5]" />
+              <span>Master Workforce Calendar</span>
             </div>
             <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
               Welcome back, {currentUser?.full_name || 'Team Member'} 👋
             </h1>
-            <p className="text-sm text-blue-100/90 mt-1 font-medium max-w-xl">
-              Master Calendar view tracking shift attendance, leave requests, upcoming holidays, and team task deliverables.
+            <p className="text-sm text-blue-100 font-bold mt-1.5 max-w-xl">
+              Track attendance shifts, leave applications, company holidays, and team task deliverables.
             </p>
           </div>
 
-          {/* Quick Metrics Pills */}
+          {/* Metrics Pills with High Contrast */}
           <div className="grid grid-cols-3 gap-3 shrink-0">
-            <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/15 text-center">
-              <div className="text-xs text-blue-200 font-bold">Shift Status</div>
-              <div className="text-sm font-extrabold mt-0.5 text-white">
+            <div className="bg-white p-3 rounded-xl border border-blue-200 text-center shadow-xs">
+              <div className="text-xs text-gray-700 font-extrabold">Shift Status</div>
+              <div className="text-sm font-black mt-1">
                 {todayAttendance ? (
-                  <span className="text-emerald-300">Clocked In</span>
+                  <span className="text-emerald-700 font-black">Clocked In</span>
                 ) : (
-                  <span className="text-amber-200">Not Checked In</span>
+                  <span className="text-amber-800 font-black">Not Checked In</span>
                 )}
               </div>
             </div>
 
-            <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/15 text-center">
-              <div className="text-xs text-blue-200 font-bold">Open Tasks</div>
-              <div className="text-lg font-black mt-0.5 text-white">{myTasksCount}</div>
+            <div className="bg-white p-3 rounded-xl border border-blue-200 text-center shadow-xs">
+              <div className="text-xs text-gray-700 font-extrabold">Open Tasks</div>
+              <div className="text-xl font-black mt-0.5 text-gray-900">{myTasksCount}</div>
             </div>
 
-            <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/15 text-center">
-              <div className="text-xs text-blue-200 font-bold">Pending Approvals</div>
-              <div className="text-lg font-black mt-0.5 text-amber-200">{pendingLeavesCount}</div>
+            <div className="bg-white p-3 rounded-xl border border-blue-200 text-center shadow-xs">
+              <div className="text-xs text-gray-700 font-extrabold">Pending Approvals</div>
+              <div className="text-xl font-black mt-0.5 text-amber-800">{pendingLeavesCount}</div>
             </div>
           </div>
         </div>
@@ -152,38 +147,38 @@ export const DashboardPage: React.FC = () => {
 
       {/* Week Navigator Bar */}
       <div className="teamnest-card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-            <CalendarIcon className="w-5 h-5 text-blue-600" />
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center font-bold">
+            <CalendarIcon className="w-6 h-6 text-blue-800 stroke-[2.5]" />
           </div>
           <div>
-            <h2 className="font-extrabold text-base text-slate-900">
+            <h2 className="font-black text-lg text-gray-900 tracking-tight">
               Week of {formatDateShort(weekDays[0])} – {formatDateShort(weekDays[4])}, {currentWeekStart.getFullYear()}
             </h2>
-            <p className="text-xs text-slate-500 font-semibold">5-Day Workforce Operational Schedule</p>
+            <p className="text-xs text-gray-700 font-extrabold">5-Day Operational Workforce Schedule</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           <button
             onClick={() => navigateWeek('prev')}
-            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition-colors flex items-center gap-1 text-xs"
+            className="px-3.5 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-extrabold border border-gray-300 transition-colors flex items-center gap-1 text-xs"
           >
-            <ChevronLeft className="w-4 h-4" /> Previous Week
+            <ChevronLeft className="w-4 h-4 stroke-[2.5]" /> Previous Week
           </button>
 
           <button
             onClick={() => setCurrentWeekStart(new Date())}
-            className="px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-extrabold text-xs transition-colors border border-blue-200/80"
+            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs transition-colors shadow-sm"
           >
             Current Week
           </button>
 
           <button
             onClick={() => navigateWeek('next')}
-            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition-colors flex items-center gap-1 text-xs"
+            className="px-3.5 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-extrabold border border-gray-300 transition-colors flex items-center gap-1 text-xs"
           >
-            Next Week <ChevronRight className="w-4 h-4" />
+            Next Week <ChevronRight className="w-4 h-4 stroke-[2.5]" />
           </button>
         </div>
       </div>
@@ -212,49 +207,52 @@ export const DashboardPage: React.FC = () => {
             <div
               key={idx}
               className={`teamnest-card p-4 flex flex-col justify-between space-y-4 ${
-                isTodayDay ? 'ring-2 ring-blue-600 bg-blue-50/20 border-blue-200' : ''
+                isTodayDay ? 'ring-2 ring-blue-600 bg-blue-50/50 border-blue-400' : ''
               }`}
             >
               {/* Day Header */}
-              <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
+              <div className="border-b border-gray-200 pb-3 flex items-center justify-between">
                 <div>
-                  <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">
+                  <span className="text-xs font-black uppercase tracking-wider text-gray-700">
                     {dayName}
                   </span>
-                  <div className="text-lg font-black text-slate-900">
+                  <div className="text-lg font-black text-gray-900">
                     {formatDateShort(dayDate)}
                   </div>
                 </div>
 
                 {isTodayDay && (
-                  <span className="px-2.5 py-0.5 rounded-full bg-blue-600 text-white font-extrabold text-[10px] uppercase tracking-wide">
+                  <span className="px-2.5 py-1 rounded-full bg-blue-600 text-white font-black text-[10px] uppercase tracking-wider">
                     Today
                   </span>
                 )}
               </div>
 
-              {/* Day Contents */}
+              {/* Day Contents / Pill Items */}
               <div className="space-y-2.5 flex-1 min-h-[140px]">
+                {/* 1. Holidays Pill */}
                 {dayHolidays.map((h) => (
                   <div
                     key={h.id}
-                    className="p-2.5 rounded-xl bg-sky-100 border border-sky-300 text-sky-900 flex items-center gap-2 text-xs font-extrabold shadow-xs"
+                    className="p-2.5 rounded-xl bg-sky-100 border border-sky-300 text-sky-950 flex items-center gap-2 text-xs font-black shadow-xs"
                   >
-                    <Gift className="w-4 h-4 text-sky-700 shrink-0" />
+                    <Gift className="w-4 h-4 text-sky-800 shrink-0 stroke-[2.5]" />
                     <span className="truncate">{h.name}</span>
                   </div>
                 ))}
 
+                {/* 2. Approved Leaves Pill */}
                 {dayLeaves.map((l) => (
                   <div
                     key={l.id}
-                    className="p-2.5 rounded-xl bg-amber-100 border border-amber-300 text-amber-900 flex items-center gap-2 text-xs font-extrabold shadow-xs"
+                    className="p-2.5 rounded-xl bg-amber-100 border border-amber-300 text-amber-950 flex items-center gap-2 text-xs font-black shadow-xs"
                   >
-                    <Palmtree className="w-4 h-4 text-amber-700 shrink-0" />
+                    <Palmtree className="w-4 h-4 text-amber-800 shrink-0 stroke-[2.5]" />
                     <span className="truncate">{l.leave_type} Leave</span>
                   </div>
                 ))}
 
+                {/* 3. Attendance Clock-in Pill */}
                 {dayAttendance.map((a) => {
                   const clockInTime = a.clock_in
                     ? new Date(a.clock_in).toLocaleTimeString([], {
@@ -267,53 +265,56 @@ export const DashboardPage: React.FC = () => {
                   return (
                     <div
                       key={a.id}
-                      className={`p-2.5 rounded-xl border flex items-center justify-between text-xs font-extrabold shadow-xs ${
+                      className={`p-2.5 rounded-xl border flex items-center justify-between text-xs font-black shadow-xs ${
                         isUserClockIn
-                          ? 'bg-emerald-100 border-emerald-300 text-emerald-900'
-                          : 'bg-slate-100 border-slate-200 text-slate-800'
+                          ? 'bg-emerald-100 border-emerald-300 text-emerald-950'
+                          : 'bg-gray-100 border-gray-300 text-gray-900'
                       }`}
                     >
                       <div className="flex items-center gap-2 truncate">
-                        <Clock className={`w-4 h-4 ${isUserClockIn ? 'text-emerald-700' : 'text-slate-500'} shrink-0`} />
+                        <Clock className={`w-4 h-4 ${isUserClockIn ? 'text-emerald-800' : 'text-gray-700'} shrink-0 stroke-[2.5]`} />
                         <span className="truncate">In: {clockInTime}</span>
                       </div>
-                      <span className="text-[10px] text-slate-500 font-semibold truncate ml-1">
+                      <span className="text-xs text-gray-700 font-extrabold truncate ml-1">
                         {a.user?.full_name ? a.user.full_name.split(' ')[0] : ''}
                       </span>
                     </div>
                   );
                 })}
 
+                {/* 4. Interactive Tasks */}
                 {dayTasks.map((t) => (
                   <div
                     key={t.id}
                     onClick={() => handleToggleTask(t.id, t.status)}
                     className={`p-2.5 rounded-xl border cursor-pointer flex items-start gap-2 text-xs transition-all ${
                       t.status === 'DONE'
-                        ? 'bg-slate-50 border-slate-200 text-slate-400 line-through'
-                        : 'bg-white hover:bg-blue-50/50 border-slate-200 hover:border-blue-200 text-slate-900 font-bold shadow-xs'
+                        ? 'bg-gray-100 border-gray-300 text-gray-700 line-through font-bold'
+                        : 'bg-white hover:bg-blue-50 border-gray-300 hover:border-blue-400 text-gray-900 font-extrabold shadow-xs'
                     }`}
                   >
                     {t.status === 'DONE' ? (
-                      <CheckSquare className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <CheckSquare className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5 stroke-[2.5]" />
                     ) : (
-                      <Square className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                      <Square className="w-4 h-4 text-gray-700 shrink-0 mt-0.5 stroke-[2.5]" />
                     )}
                     <span className="leading-snug">{t.title}</span>
                   </div>
                 ))}
 
+                {/* Empty State */}
                 {dayHolidays.length === 0 &&
                   dayLeaves.length === 0 &&
                   dayAttendance.length === 0 &&
                   dayTasks.length === 0 && (
-                    <div className="h-full flex items-center justify-center text-xs text-slate-400 italic py-8 border border-dashed border-slate-200 rounded-xl">
+                    <div className="h-full flex items-center justify-center text-xs text-gray-600 font-bold italic py-8 border border-dashed border-gray-300 rounded-xl">
                       No scheduled events
                     </div>
                   )}
               </div>
 
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-bold text-slate-400">
+              {/* Day Footer */}
+              <div className="pt-2 border-t border-gray-200 flex items-center justify-between text-xs font-extrabold text-gray-700">
                 <span>{dayName.slice(0, 3)}</span>
                 <span>{dayTasks.length} tasks</span>
               </div>
