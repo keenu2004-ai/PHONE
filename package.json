@@ -1,0 +1,12 @@
+{
+  "name": "teamnest",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "build:server": "npm --prefix server run build",
+    "build:client": "npm --prefix client run build",
+    "setup": "npm --prefix server install && npm --prefix client install && npm --prefix server run db:push && npm --prefix server run db:seed"
+  }
+}

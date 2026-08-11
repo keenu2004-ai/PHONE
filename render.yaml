@@ -1,0 +1,29 @@
+services:
+  # Express REST API Server
+  - type: web
+    name: teamnest-api
+    env: node
+    region: oregon
+    plan: starter
+    rootDir: server
+    buildCommand: npm install && npm run db:push && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: teamnest-postgres
+          property: connectionString
+
+databases:
+  # Managed PostgreSQL Database
+  - name: teamnest-postgres
+    region: oregon
+    plan: starter
+    databaseName: teamnest_db
+    user: teamnest_user

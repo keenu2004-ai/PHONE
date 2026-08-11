@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id         String   @id @default(uuid())
+  full_name  String
+  email      String   @unique
+  role       String   @default("EMPLOYEE") // ADMIN | EMPLOYEE
+  avatar_url String   @default("https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  attendances Attendance[]
+  leaves      Leave[]
+  expenses    Expense[]
+  tasks       Task[]
+}
+
+model Attendance {
+  id           String    @id @default(uuid())
+  user_id      String
+  user         User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  date         DateTime
+  clock_in     DateTime?
+  clock_out    DateTime?
+  check_in_lat Float?
+  check_in_lng Float?
+  status       String    @default("PRESENT") // PRESENT | ABSENT
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Leave {
+  id         String   @id @default(uuid())
+  user_id    String
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  start_date DateTime
+  end_date   DateTime
+  leave_type String
+  comments   String?
+  status     String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Expense {
+  id          String   @id @default(uuid())
+  user_id     String
+  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  date        DateTime
+  amount      Float
+  category    String
+  receipt_url String?
+  status      String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Task {
+  id        String   @id @default(uuid())
+  user_id   String
+  user      User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  due_date  DateTime
+  title     String
+  status    String   @default("TODO") // TODO | DONE
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Holiday {
+  id        String   @id @default(uuid())
+  date      DateTime
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
