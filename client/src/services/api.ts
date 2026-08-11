@@ -1,6 +1,6 @@
 import { Attendance, Expense, Holiday, Leave, Task, User } from '../types';
 
-const API_BASE = '/api';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
 // Helper to make fetch requests with JSON headers and error handling
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
